@@ -61,6 +61,7 @@ namespace Warpinator
             // statusStrip1
             // 
             resources.ApplyResources(this.statusStrip1, "statusStrip1");
+            this.statusStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.lblIP,
             this.lblStatus});
@@ -80,10 +81,12 @@ namespace Warpinator
             // menuStrip1
             // 
             resources.ApplyResources(this.menuStrip1, "menuStrip1");
+            this.menuStrip1.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fileToolStripMenuItem,
             this.helpToolStripMenuItem});
             this.menuStrip1.Name = "menuStrip1";
+            this.menuStrip1.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.menuStrip1_ItemClicked);
             // 
             // fileToolStripMenuItem
             // 
@@ -127,6 +130,7 @@ namespace Warpinator
             this.connectionIssuesToolStripMenuItem,
             this.gitHubToolStripMenuItem});
             this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
+            this.helpToolStripMenuItem.Click += new System.EventHandler(this.helpToolStripMenuItem_Click);
             // 
             // aboutToolStripMenuItem
             // 
@@ -138,6 +142,7 @@ namespace Warpinator
             // 
             resources.ApplyResources(this.connectionIssuesToolStripMenuItem, "connectionIssuesToolStripMenuItem");
             this.connectionIssuesToolStripMenuItem.Name = "connectionIssuesToolStripMenuItem";
+            this.connectionIssuesToolStripMenuItem.Click += new System.EventHandler(this.connectionIssuesToolStripMenuItem_Click);
             // 
             // gitHubToolStripMenuItem
             // 
@@ -149,6 +154,7 @@ namespace Warpinator
             // 
             resources.ApplyResources(this.label1, "label1");
             this.label1.Name = "label1";
+            this.label1.Click += new System.EventHandler(this.label1_Click);
             // 
             // flowLayoutPanel
             // 
@@ -164,6 +170,7 @@ namespace Warpinator
             // notifyIconMenu
             // 
             resources.ApplyResources(this.notifyIconMenu, "notifyIconMenu");
+            this.notifyIconMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.notifyIconMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.openToolStripMenuItem,
             this.quitToolStripMenuItem1});
@@ -199,6 +206,7 @@ namespace Warpinator
             resources.ApplyResources(this.lblInitializing, "lblInitializing");
             this.lblInitializing.BackColor = System.Drawing.SystemColors.ControlLightLight;
             this.lblInitializing.Name = "lblInitializing";
+            this.lblInitializing.Click += new System.EventHandler(this.lblInitializing_Click);
             // 
             // Form1
             // 

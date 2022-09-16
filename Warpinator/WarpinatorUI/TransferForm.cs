@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Warpinator.Controls;
+using iShare;
 
 namespace Warpinator
 {

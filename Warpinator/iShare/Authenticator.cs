@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.IO;
+﻿using System.Collections;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -17,14 +15,14 @@ using Org.BouncyCastle.Utilities;
 using Org.BouncyCastle.Utilities.IO.Pem;
 using Org.BouncyCastle.X509;
 
-namespace Warpinator
+namespace iShare
 {
     class Authenticator
     {
         static readonly ILog log = LogManager.GetLogger<Authenticator>();
 
-        public static string GroupCode = DefaultGroupCode;
-        const string DefaultGroupCode = "Warpinator";
+        public static string GroupCode = Server.current.Settings.GroupCode;
+        //const string DefaultGroupCode = "warpinator";
         const string CertificateFileName = ".self.pem";
         const string KeyFileName = ".self.pem_key";
         
@@ -39,7 +37,7 @@ namespace Warpinator
             byte[] key;
             using (var sha = SHA256.Create())
                 key = sha.ComputeHash(codeBytes);
-            var box = new NaCl.XSalsa20Poly1305(key); //SecretBox
+            var box = new  NaCl.XSalsa20Poly1305(key); //SecretBox
 
             byte[] nonce = new byte[NaCl.XSalsa20Poly1305.NonceLength];
             using (var rng = RandomNumberGenerator.Create())
@@ -64,7 +62,7 @@ namespace Warpinator
             byte[] message = new byte[data.Length - 24 - NaCl.XSalsa20Poly1305.TagLength];
             if (!box.TryDecrypt(message, 0, data, 24, data.Length - 24, data, 0))
                 return false;
-
+            Console.WriteLine($" ------- certif in {Path.Combine(Utils.GetCertDir(), name + ".pem")}");
             File.WriteAllBytes(Path.Combine(Utils.GetCertDir(), name + ".pem"), message);
             return true;
         }

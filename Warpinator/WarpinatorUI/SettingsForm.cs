@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Makaretu.Dns;
+using iShare;
 
 namespace Warpinator
 {
@@ -89,7 +90,7 @@ namespace Warpinator
         private void BtnRestart_Click(object sender, EventArgs e)
         {
             ApplyNetwork();
-            Server.current.Restart();
+            Server.current.Restart(Properties.Settings.Default.getServerSettings());
         }
 
         private void BtnCancel_Click(object sender, EventArgs e) => Close();
@@ -104,6 +105,16 @@ namespace Warpinator
         {
             txtGroupcode.UseSystemPasswordChar = !txtGroupcode.UseSystemPasswordChar;
             btnShowCode.BackgroundImage = txtGroupcode.UseSystemPasswordChar ? Properties.Resources.visible : Properties.Resources.invisible;
+        }
+
+        private void txtRecvDir_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

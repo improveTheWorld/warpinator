@@ -3,8 +3,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using iCode.Log;
 
-namespace Warpinator
+namespace iShare
 {
     class CertServer
     {
@@ -14,7 +15,7 @@ namespace Warpinator
         static UdpClient client;
         static Thread serverThread;
         static bool running = false;
-
+        
         public static void Start(int port)
         {
             Port = port;
@@ -32,24 +33,29 @@ namespace Warpinator
                 client.Close();
         }
 
-        private static void Run()
+        private static async void Run()
         {
             client = new UdpClient(Port, AddressFamily.InterNetwork);
             IPEndPoint endPoint = new IPEndPoint(0, 0);
 
             byte[] sendData = Authenticator.GetBoxedCertificate();
-            sendData = Encoding.ASCII.GetBytes(Convert.ToBase64String(sendData));
+            string base64 = Convert.ToBase64String(sendData);
+            Logger.Info($"certif generated length= {base64.Length}: {base64.Substring(0,3)} ... {base64.Substring(base64.Length-4)}");
+            sendData = Encoding.ASCII.GetBytes(base64);
             while (running)
             {
                 try
                 {
-                    byte[] data = client.Receive(ref endPoint);
+                    var receivedData = await client.ReceiveAsync();
+                    byte[] data = receivedData.Buffer;
+                    endPoint = receivedData.RemoteEndPoint;
                     string request = Encoding.UTF8.GetString(data);
+                    Console.WriteLine($"Received Request from {endPoint} = {request}");
                     if (request == Request)
                     {
-                        client.Send(sendData, sendData.Length, endPoint);
-                        Console.WriteLine($"Certificate sent to {endPoint}");
-                    }
+                        await client.SendAsync(sendData, sendData.Length, endPoint);
+                        Console.WriteLine($"Certificate length = {sendData.Length} sent to {endPoint}");
+                    } 
                 }
                 catch (Exception e)
                 {

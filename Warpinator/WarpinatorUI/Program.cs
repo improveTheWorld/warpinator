@@ -6,40 +6,21 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Common.Logging;
-using Common.Logging.Simple;
+
 
 namespace Warpinator
 {
     static class Program
     {
-        internal static ILoggerFactoryAdapter Log { get; private set; }
+        //internal static ILoggerFactoryAdapter Log { get; private set; }
         internal static List<string> SendPaths = new List<string>(); 
         static NamedPipeServerStream pipeServer;
 
         [STAThread]
         static void Main(string[] args)
         {
-            //Global logging (libraries)
-            var properties = new Common.Logging.Configuration.NameValueCollection
-            {
-                ["level"] = "INFO",
-                ["showLogName"] = "true",
-                ["showDateTime"] = "false",
-                ["dateTimeFormat"] = "HH:mm:ss.fff"
-            };
-            LogManager.Adapter = new ConsoleOutLoggerFactoryAdapter(properties);
-            //Application logging
-            var properties2 = new Common.Logging.Configuration.NameValueCollection
-            {
-                ["level"] = "ALL",
-                ["showLogName"] = "true",
-                ["showDateTime"] = "false",
-            };
-            Log = new ConsoleOutLoggerFactoryAdapter(properties2);
-            
-            var log = Log.GetLogger("Main");
-            log.Info("Hola hej!");
+
+            Console.WriteLine("Starting warpinator!");
 
             var mutex = new Mutex(true, "warpinator", out bool created);
             // Process arguments
@@ -47,14 +28,14 @@ namespace Warpinator
             {
                 foreach (var path in args)
                 {
-                    log.Debug("Got path to send: " + path);
+                    Console.WriteLine("Got path to send: " + path);
                     if (File.Exists(path) || Directory.Exists(path))
                         SendPaths.Add(path);
-                    else log.Warn("Path does not exist");
+                    else Console.WriteLine("Path does not exist");
                 }
                 if (!created)
                 {
-                    log.Debug("Passing paths to main process...");
+                    Console.WriteLine("Passing paths to main process...");
                     using (var pipeClient = new NamedPipeClientStream(".", "warpsendto", PipeDirection.Out))
                     {
                         pipeClient.Connect();
@@ -70,7 +51,7 @@ namespace Warpinator
             // Run application if not yet running
             if (created)
             {
-                log.Debug("Starting application...");
+                Console.WriteLine("Starting application...");
                 Task.Run(RunPipeServer);
                 
                 Application.EnableVisualStyles();
@@ -80,12 +61,11 @@ namespace Warpinator
                 pipeServer.Close();
             }
             mutex.Dispose();
-            log.Info("Exit");
+            Console.WriteLine("Exit");
         }
 
         static void RunPipeServer()
         {
-            var log = Log.GetLogger("PipeServer");
             pipeServer = new NamedPipeServerStream("warpsendto", PipeDirection.In, NamedPipeServerStream.MaxAllowedServerInstances);
             try
             {
@@ -100,7 +80,7 @@ namespace Warpinator
                             if (!(File.Exists(path) || Directory.Exists(path)))
                                 continue;
                             SendPaths.Add(path);
-                            log.Debug($"Got path {path}");
+                            Console.WriteLine($"Got path {path}");
                         }
                         Form1.OnSendTo();
                         pipeServer.Disconnect();
@@ -109,7 +89,7 @@ namespace Warpinator
             }
             catch (Exception e)
             {
-                log.Info($"Pipe server quit ({e.GetType()})");
+                Console.WriteLine($"Pipe server quit ({e.GetType()})");
             }
         }
     }

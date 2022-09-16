@@ -4,15 +4,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using iCode.Log;
 
-namespace Warpinator
+namespace iShare
 {
-    class GrpcService : Warp.WarpBase
+    class GrpcService : 
+        Warp.WarpBase
     {
-        private static readonly Common.Logging.ILog log = Program.Log.GetLogger(typeof(GrpcService));
+        
 
         public override Task<HaveDuplex> CheckDuplexConnection(LookupName request, ServerCallContext context)
         {
+            
             bool result = false;
             if (Server.current.Remotes.ContainsKey(request.Id))
             {
@@ -53,10 +56,10 @@ namespace Warpinator
             Remote r = Server.current.Remotes[remoteUUID];
             if (r == null)
             {
-                log.Warn($"Received transfer from unknown remote {remoteUUID}");
+                this.Warn($"Received transfer from unknown remote {remoteUUID}");
                 return Void;
             }
-            log.Info($"Incoming transfer from {r.UserName}");
+            this.Info($"Incoming transfer from {r.UserName}");
 
             var t = new Transfer() {
                 Direction = TransferDirection.RECEIVE,
@@ -70,6 +73,7 @@ namespace Warpinator
                 TopDirBaseNames = request.TopDirBasenames.ToList()
             };
             r.Transfers.Add(t);
+            r.NotifyTransferListUpdated(t);
             t.PrepareReceive();
             
             return Void;
@@ -77,7 +81,7 @@ namespace Warpinator
 
         public override Task<VoidType> CancelTransferOpRequest(OpInfo request, ServerCallContext context)
         {
-            log.Debug("Transfer cancelled by the other side");
+            this.Debug("Transfer cancelled by the other side");
             var t = GetTransfer(request);
             if (t != null)
                 t.MakeDeclined();
@@ -86,7 +90,7 @@ namespace Warpinator
         }
         public override async Task StartTransfer(OpInfo request, IServerStreamWriter<FileChunk> responseStream, ServerCallContext context)
         {
-            log.Debug("Transfer was accepted");
+            this.Debug("Transfer was accepted");
             var t = GetTransfer(request);
             if (t != null)
             {
@@ -96,17 +100,17 @@ namespace Warpinator
                 }
                 catch (Exception e)
                 {
-                    log.Error("Transfer failed with exception", e);
-                    t.errors.Add(Resources.Strings.sending_failed + e.Message);
+                    this.Error("Transfer failed with exception", e);
+                    t.errors.Add("sending_failed" + e.Message);
                     t.Status = TransferStatus.FAILED;
-                    t.OnTransferUpdated();
+                    t.NotifyTransferUpdated();
                 }
             }
         }
 
         public override Task<VoidType> StopTransfer(StopInfo request, ServerCallContext context)
         {
-            log.Debug($"Transfer stopped by the other side, error: {request.Error}");
+            this.Debug($"Transfer stopped by the other side, error: {request.Error}");
             var t = GetTransfer(request.Info);
             if (t != null)
                 t.OnStopped(request.Error);
@@ -118,12 +122,12 @@ namespace Warpinator
         {
             if (!Server.current.Remotes.TryGetValue(info.Ident, out Remote r))
             {
-                log.Warn("Could not find corresponding remote: " + info.Ident);
+                this.Warn("Could not find corresponding remote: " + info.Ident);
                 return null;
             }
             var t = r.Transfers.Find((i) => i.StartTime == info.Timestamp);
             if (t == null)
-                log.Warn("Could not find corresponding transfer");
+                this.Warn("Could not find corresponding transfer");
             return t;
         }
 

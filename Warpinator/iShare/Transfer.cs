@@ -1,12 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Common.Logging;
+using Grpc.Core;
+using iCode.Log;
+using MimeTypeMap.List;
 
-namespace Warpinator
+namespace iShare
 {
     public enum TransferStatus
     {
@@ -19,7 +20,7 @@ namespace Warpinator
     
     public class Transfer
     {
-        readonly ILog log = Program.Log.GetLogger("Transfer");
+        
         private enum FileType : int {
             FILE = 1, DIRECTORY = 2, SYMLINK = 3
         }
@@ -66,17 +67,17 @@ namespace Warpinator
             if (Direction == TransferDirection.RECEIVE)
                 StopReceiving();
             else StopSending();
-            OnTransferUpdated();
+            NotifyTransferUpdated();
         }
 
         public void MakeDeclined()
         {
             Status = TransferStatus.DECLINED;
-            OnTransferUpdated();
+            NotifyTransferUpdated();
         }
 
-        public void OnTransferUpdated()
-        {
+        public void NotifyTransferUpdated()
+        { 
             TransferUpdated?.Invoke(this, null);
         }
 
@@ -105,7 +106,7 @@ namespace Warpinator
             else if (seconds > 5)
                 return $"{seconds}s";
             else
-                return Resources.Strings.a_few_seconds;
+                return "a_few_seconds";
         }
 
         /***** SEND ******/
@@ -122,18 +123,18 @@ namespace Warpinator
             TopDirBaseNames = new List<string>(FilesToSend.Select((f) => Path.GetFileName(f)));
             if (FileCount == 1)
             {
-                SingleName = Path.GetFileName(FilesToSend[0]);
-                SingleMIME = System.Web.MimeMapping.GetMimeMapping(SingleName);
+                SingleName = Path.GetFileName(FilesToSend[0]);                
+                SingleMIME = MimeTypeMap.List.MimeTypeMap.GetMimeType(Path.GetExtension(FilesToSend[0]).TrimStart('.')).First<string>();
             }
         }
 
-        public async Task StartSending(Grpc.Core.IServerStreamWriter<FileChunk> stream)
+        public async Task StartSending(IServerStreamWriter<FileChunk> stream)
         {
             Status = TransferStatus.TRANSFERRING;
             RealStartTime = DateTime.Now.Ticks;
             BytesTransferred = 0;
             cancelled = false;
-            OnTransferUpdated();
+            NotifyTransferUpdated();
 
             string f1 = FilesToSend[0];
             int parentLen = f1.TrimEnd(Path.DirectorySeparatorChar).LastIndexOf(Path.DirectorySeparatorChar);
@@ -188,14 +189,14 @@ namespace Warpinator
                         long now = DateTime.Now.Ticks;
                         BytesPerSecond = (long)(r / ((double)(now - lastTicks) / TimeSpan.TicksPerSecond));
                         lastTicks = now;
-                        OnTransferUpdated();
+                        NotifyTransferUpdated();
                     } while (read < length && !cancelled);
                 }
             }
             if (!cancelled)
             {
                 Status = TransferStatus.FINISHED;
-                OnTransferUpdated();
+                NotifyTransferUpdated();
             }
         }
 
@@ -242,11 +243,11 @@ namespace Warpinator
             //TODO: Check enough space
 
             //Check if will overwrite
-            if (Properties.Settings.Default.AllowOverwrite)
+            if (Server.current.Settings.AllowOverwrite)
             {
                 foreach (string p in TopDirBaseNames)
                 {
-                    var path = Path.Combine(Properties.Settings.Default.DownloadDir, Utils.SanitizePath(p));
+                    var path = Path.Combine(Server.current.Settings.DownloadDir, Utils.SanitizePath(p));
                     if (File.Exists(path) || Directory.Exists(path))
                     {
                         OverwriteWarning = true;
@@ -256,25 +257,24 @@ namespace Warpinator
             }
 
             Server.current.Remotes[RemoteUUID].IncomingTransferFlag = true;
-            Server.current.Remotes[RemoteUUID].UpdateTransfers();
-            Form1.OnIncomingTransfer(this);
+            Server.current.Remotes[RemoteUUID].NotifyTransferListUpdated(this);
 
-            if (Properties.Settings.Default.AutoAccept)
+            if (Server.current.Settings.AutoAccept)
                 StartReceiving();
         }
 
         public void StartReceiving()
         {
-            log.Info("Transfer accepted");
+            this.Info("Transfer accepted");
             Status = TransferStatus.TRANSFERRING;
             RealStartTime = DateTime.Now.Ticks;
-            OnTransferUpdated();
+            NotifyTransferUpdated();
             Server.current.Remotes[RemoteUUID].StartReceiveTransfer(this);
         }
 
         public void DeclineTransfer()
         {
-            log.Info("Transfer declined");
+            this.Info("Transfer declined");
             Server.current.Remotes[RemoteUUID].DeclineTransfer(this);
             MakeDeclined();
         }
@@ -292,13 +292,13 @@ namespace Warpinator
                 // Begin new file
                 currentRelativePath = chunk.RelativePath;
                 string sanitizedPath = Utils.SanitizePath(currentRelativePath);
-                currentPath = Path.Combine(Server.current.settings.DownloadDir, sanitizedPath);
+                currentPath = Path.Combine(Server.current.Settings.DownloadDir, sanitizedPath);
                 if (chunk.FileType == (int)FileType.DIRECTORY)
                     Directory.CreateDirectory(currentPath);
                 else if (chunk.FileType == (int)FileType.SYMLINK)
                 {
-                    log.Warn("Symlinks not supported");
-                    errors.Add(Resources.Strings.symlinks_not_supported);
+                    this.Warn("Symlinks not supported");
+                    errors.Add("symlinks_not_supported");
                 }
                 else
                 {
@@ -314,8 +314,8 @@ namespace Warpinator
                         chunkSize = bytes.Length;
                     } catch (Exception e)
                     {
-                        log.Error($"Failed to open file for writing {currentRelativePath}", e);
-                        errors.Add(Resources.Strings.failed_open_file + currentRelativePath);
+                        this.Error($"Failed to open file for writing {currentRelativePath}", e);
+                        errors.Add("failed_open_file" + currentRelativePath);
                         FailReceive();
                     }
                 }
@@ -329,8 +329,8 @@ namespace Warpinator
                     chunkSize = bytes.Length;
                 } catch (Exception e)
                 {
-                    log.Error($"Failed to write to file {currentRelativePath}: {e.Message}");
-                    errors.Add(String.Format(Resources.Strings.failed_write_file, currentFileDateTime, e.Message));
+                    this.Error($"Failed to write to file {currentRelativePath}: {e.Message}");
+                    errors.Add(String.Format("failed_write_file", currentFileDateTime, e.Message));
                     FailReceive();
                 }
             }
@@ -338,25 +338,25 @@ namespace Warpinator
             long now = DateTime.Now.Ticks;
             BytesPerSecond = (long)(chunkSize / ((double)(now - lastTicks) / TimeSpan.TicksPerSecond));
             lastTicks = now;
-            OnTransferUpdated();
+            NotifyTransferUpdated();
             return Status == TransferStatus.TRANSFERRING;
         }
 
         public void FinishReceive()
         {
-            log.Debug("Finalizing transfer");
+            this.Debug("Finalizing transfer");
             if (errors.Count > 0)
                 Status = TransferStatus.FINISHED_WITH_ERRORS;
             else Status = TransferStatus.FINISHED;
             CloseStream();
             if (currentFileDateTime.HasValue)
                 File.SetLastWriteTime(currentPath, currentFileDateTime.Value);
-            OnTransferUpdated();
+            NotifyTransferUpdated();
         }
 
         private void StopReceiving()
         {
-            log.Trace("Stopping receiving");
+            this.Trace("Stopping receiving");
             CloseStream();
             // Delete incomplete path
             try
@@ -365,7 +365,7 @@ namespace Warpinator
             }
             catch (Exception e)
             {
-                log.Warn("Could not delete incomplete file: " + e.Message);
+                this.Warn("Could not delete incomplete file: " + e.Message);
             }
         }
 
@@ -374,7 +374,7 @@ namespace Warpinator
             //Don't overwrite other reason for stopping
             if (Status == TransferStatus.TRANSFERRING)
             {
-                log.Debug("Receiving failed");
+                this.Debug("Receiving failed");
                 Status = TransferStatus.FAILED;
                 Stop(error: true); //Calls stopReceiving & informs other about error
             }
@@ -382,9 +382,9 @@ namespace Warpinator
 
         private string HandleFileExists(string path)
         {
-            if (Properties.Settings.Default.AllowOverwrite)
+            if (Server.current.Settings.AllowOverwrite)
             {
-                log.Trace("Overwriting..");
+                this.Trace("Overwriting..");
                 File.Delete(path);
             }
             else
@@ -398,7 +398,7 @@ namespace Warpinator
                     path = Path.Combine(dir, $"{file} ({i}){ext}");
                     i++;
                 } while (File.Exists(path));
-                log.Trace("New path: " + path);
+                this.Trace("New path: " + path);
             }
             return path;
         }
@@ -416,17 +416,17 @@ namespace Warpinator
             }
         }
 
-        internal string GetStatusString()
+        public string GetStatusString()
         {
             switch (Status) {
-                case TransferStatus.WAITING_PERMISSION: return Resources.Strings.waiting_for_permission;
-                case TransferStatus.DECLINED: return Resources.Strings.declined;
-                case TransferStatus.TRANSFERRING: return Resources.Strings.transferring;
-                case TransferStatus.PAUSED: return Resources.Strings.paused;
-                case TransferStatus.STOPPED: return Resources.Strings.stopped;
-                case TransferStatus.FINISHED: return Resources.Strings.finished;
-                case TransferStatus.FINISHED_WITH_ERRORS: return Resources.Strings.finished_errors;
-                case TransferStatus.FAILED: return Resources.Strings.failed;
+                case TransferStatus.WAITING_PERMISSION: return "waiting_for_permission";
+                case TransferStatus.DECLINED: return "declined";
+                case TransferStatus.TRANSFERRING: return "transferring";
+                case TransferStatus.PAUSED: return "paused";
+                case TransferStatus.STOPPED: return "stopped";
+                case TransferStatus.FINISHED: return "finished";
+                case TransferStatus.FINISHED_WITH_ERRORS: return "finished_errors";
+                case TransferStatus.FAILED: return "failed";
                 default: return "???";
             }
         }

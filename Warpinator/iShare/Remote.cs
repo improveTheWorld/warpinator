@@ -1,17 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Grpc.Core;
+using iCode.Log;
 using System.Drawing;
-using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Common.Logging;
-using Grpc.Core;
-
-namespace Warpinator
+namespace iShare
 {
     public enum RemoteStatus
     {
@@ -32,43 +25,42 @@ namespace Warpinator
         public string Hostname;
         public string DisplayName;
         public string UUID;
-        public Bitmap Picture = Properties.Resources.profile;
+        public Bitmap Picture;
         public RemoteStatus Status;
         public bool ServiceAvailable;
         public bool IncomingTransferFlag = false;
         public List<Transfer> Transfers = new List<Transfer>();
         public event EventHandler RemoteUpdated;
+        public event EventHandler<Transfer> TranferListUpdated;
 
-        readonly ILog log = Program.Log.GetLogger("Remote");
         Channel channel;
         Warp.WarpClient client;
-        TransferForm form;
 
         public async void Connect()
         {
-            log.Info($"Connecting to {Hostname}");
+            this.Info($"Connecting to {Hostname}");
             Status = RemoteStatus.CONNECTING;
-            UpdateUI();
-            if (!await Task.Run(ReceiveCertificate))
+            NotifyRemoteStatusUpdated();
+            if (!await Task.Run(ReceiveCertificateAsync))
             {
                 Status = RemoteStatus.ERROR;
-                UpdateUI();
+                NotifyRemoteStatusUpdated();
                 return;
             }
-            log.Trace($"Certificate for {Hostname} received and saved");
+            Console.WriteLine($"Certificate for {Hostname} received and saved");
 
             SslCredentials cred = new SslCredentials(Authenticator.GetRemoteCertificate(UUID));
             channel = new Channel(Address.ToString(), Port, cred);
             client = new Warp.WarpClient(channel);
 
             Status = RemoteStatus.AWAITING_DUPLEX;
-            UpdateUI();
+            NotifyRemoteStatusUpdated();
 
             if (!await WaitForDuplex())
             {
-                log.Error($"Couldn't establish duplex with {Hostname}");
+                this.Error($"Couldn't establish duplex with {Hostname}");
                 Status = RemoteStatus.ERROR;
-                UpdateUI();
+                NotifyRemoteStatusUpdated();
                 return;
             }
 
@@ -88,16 +80,16 @@ namespace Warpinator
                     bytes.AddRange(avatar.ResponseStream.Current.AvatarChunk);
                 Picture = new Bitmap(new MemoryStream(bytes.ToArray()));
             } catch (Exception) {
-                Picture = Properties.Resources.profile;
+                Picture = null;
             }
 
-            UpdateUI();
-            log.Info($"Connection established with {Hostname}");
+            NotifyRemoteStatusUpdated();
+            this.Info($"Connection established with {Hostname}");
         }
 
         public async void Disconnect()
         {
-            log.Info($"Disconnecting {Hostname}");
+            this.Info($"Disconnecting {Hostname}");
             await channel.ShutdownAsync();
             Status = RemoteStatus.DISCONNECTED;
         }
@@ -110,9 +102,9 @@ namespace Warpinator
             }
             catch (RpcException)
             {
-                log.Debug($"Ping to {Hostname} failed");
+                this.Debug($"Ping to {Hostname} failed");
                 Status = RemoteStatus.DISCONNECTED;
-                UpdateUI();
+                NotifyRemoteStatusUpdated();
             }
         }
 
@@ -164,16 +156,16 @@ namespace Warpinator
             {
                 if (e.StatusCode == StatusCode.Cancelled)
                 {
-                    log.Info("Transfer was reportedly cancelled");
+                    this.Info("Transfer was reportedly cancelled");
                     t.Status = TransferStatus.STOPPED;
                 }
                 else
                 {
-                    log.Error("Error while receiving", e);
+                    this.Error("Error while receiving", e);
                     t.errors.Add("Error while receiving: " + e.Status.Detail);
                     t.Status = TransferStatus.FAILED;
                 }
-                t.OnTransferUpdated();
+                t.NotifyTransferUpdated();
             }
         }
 
@@ -204,57 +196,45 @@ namespace Warpinator
             client.StopTransferAsync(stopInfo);
         }
 
-        public void ProcessSendToTransfer()
+
+        public void ProcessSendToTransfer(List<string> sendPaths)
         {
-            if (Program.SendPaths.Count != 0)
+            if (sendPaths.Count != 0)
             {
-                log.Info($"Send To: {Hostname}");
+                this.Info($"Send To: {Hostname}");
                 Transfer t = new Transfer()
                 {
-                    FilesToSend = Program.SendPaths,
+                    FilesToSend = sendPaths,
                     RemoteUUID = UUID
                 };
-                Program.SendPaths = new List<string>();
-                Form1.UpdateUI();
+                
                 t.PrepareSend();
                 Transfers.Add(t);
-                UpdateTransfers();
+                NotifyTransferListUpdated(t);
                 StartSendTransfer(t);
             }
         }
 
-        public void OpenWindow()
-        {
-            if (form == null) {
-                form = new TransferForm(this);
-                form.Disposed += (a, b) => form = null;
-                form.Show();
-            }
-            form.Focus();
-        }
 
-        public void UpdateUI()
+        public void NotifyRemoteStatusUpdated()
         {
-            if (form != null)
-                form.Invoke(new Action(() => form.UpdateLabels()));
             RemoteUpdated?.Invoke(this, null);
         }
 
-        internal void UpdateTransfers()
+        internal void NotifyTransferListUpdated(Transfer t)
         {
-            if (form != null)
-                form.Invoke(new Action(() => form.UpdateTransfers()));
+            TranferListUpdated?.Invoke(this, t);
         }
 
         public string GetStatusString()
         {
             switch (Status)
             {
-                case RemoteStatus.CONNECTED: return Resources.Strings.connected;
-                case RemoteStatus.DISCONNECTED: return Resources.Strings.disconnected;
-                case RemoteStatus.CONNECTING: return Resources.Strings.connecting;
-                case RemoteStatus.AWAITING_DUPLEX: return Resources.Strings.awaiting_duplex;
-                case RemoteStatus.ERROR: return Resources.Strings.error;
+                case RemoteStatus.CONNECTED: return "Strings.connected";
+                case RemoteStatus.DISCONNECTED: return "disconnected";
+                case RemoteStatus.CONNECTING: return "connecting";
+                case RemoteStatus.AWAITING_DUPLEX: return "awaiting_duplex";
+                case RemoteStatus.ERROR: return "error";
                 default: return "???";
             }
         }
@@ -276,32 +256,35 @@ namespace Warpinator
                 }
                 catch (RpcException e)
                 {
-                    log.Error("Connection interrupted while waiting for duplex", e);
+                    this.Error("Connection interrupted while waiting for duplex", e);
                     return false;
                 }
-                log.Trace($"Duplex check attempt {tries}: No duplex");
+                this.Trace($"Duplex check attempt {tries}: No duplex");
                 await Task.Delay(3000);
                 tries++;
             }
             return false;
         }
 
-        private bool ReceiveCertificate()
+        private async Task<bool> ReceiveCertificateAsync()
         {
             int tryCount = 0;
             byte[] received = null;
             UdpClient udp = new UdpClient();
-            udp.Client.ReceiveTimeout = 1000;
+            udp.Client.ReceiveTimeout = 5000;
             byte[] req = Encoding.ASCII.GetBytes(CertServer.Request);
             IPEndPoint endPoint = new IPEndPoint(Address, Port);
             while (tryCount < 3)
             {
-                log.Trace($"Receiving certificate from {Address}, try {tryCount}");
+                this.Trace($"Receiving certificate from {Address}, try {tryCount}");
                 try
                 {
-                    udp.Send(req, req.Length, endPoint);
+                    await udp.SendAsync(req, req.Length, endPoint);
                     IPEndPoint recvEP = new IPEndPoint(0, 0);
-                    received = udp.Receive(ref recvEP);
+                    var receivedData = await udp.ReceiveAsync();
+                    received = receivedData.Buffer;
+                    recvEP = receivedData.RemoteEndPoint;
+                    this.Trace($"Received {received} from {recvEP} ");
                     if (recvEP.Equals(endPoint))
                     {
                         udp.Close();
@@ -311,21 +294,22 @@ namespace Warpinator
                 catch (Exception e)
                 {
                     tryCount++;
-                    log.Debug("ReceiveCertificate try " + tryCount + " failed: " + e.Message);
+                    this.Debug("ReceiveCertificate try " + tryCount + " failed: " + e.Message);
                     Thread.Sleep(1000);
                 }
             }
             if (tryCount == 3)
             {
-                log.Error($"Failed to receive certificate from {Hostname}");
+                this.Error($"Failed to receive certificate from {Hostname}");
                 return false;
             }
             string base64encoded = Encoding.ASCII.GetString(received);
+            Console.WriteLine($"Recived length ={base64encoded.Length}, data  = {base64encoded}") ;
             byte[] decoded = Convert.FromBase64String(base64encoded);
+            
             if (!Authenticator.SaveRemoteCertificate(decoded, UUID))
             {
-                System.Windows.Forms.MessageBox.Show(String.Format(Resources.Strings.error_groupcode, Hostname), Resources.Strings.error_connection);
-                log.Error("Groupcode error");
+                this.Error(String.Format("error_groupcode", Hostname));
                 return false;
             }
             return true;

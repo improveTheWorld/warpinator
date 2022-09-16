@@ -3,25 +3,30 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
+using System.DirectoryServices.AccountManagement;
 using System.Drawing;
 using System.Linq;
 using System.Net.Http;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Common.Logging;
+using iShare;
 using Warpinator.Controls;
+using Timer = System.Windows.Forms.Timer;
+
 
 namespace Warpinator
 {
     public partial class Form1 : Form
     {
-        readonly ILog log = Program.Log.GetLogger("Form1");
+        //readonly ILog log = Program.Log.GetLogger("Form1");
         readonly Server server;
         readonly Timer rescanTimer = new Timer();
         static Form1 current;
         bool quit = false;
-
+        static Dictionary<Remote, TransferForm> TransferFomList = new Dictionary<Remote, TransferForm>();
         public Form1()
         {
             current = this;
@@ -33,13 +38,23 @@ namespace Warpinator
             rescanTimer.Tick += (s, e) => {
                 btnRescan.Enabled = true; rescanToolStripMenuItem.Enabled = true; rescanTimer.Stop();
             };
-            server = new Server();
+
+            Settings settings = Properties.Settings.Default.getServerSettings();
+            if (String.IsNullOrEmpty(settings.DownloadDir))
+            {
+                settings.DownloadDir = Path.Combine(Utils.GetDefaultDownloadFolder(), "Warpinator");
+                Directory.CreateDirectory(settings.DownloadDir);
+            }
+            server = new Server(settings);
+            server.RemoteListUpdated += Form1.OnUiHasToBeUpdated;
+            server.ServerUpdated += Form1.OnUiHasToBeUpdated;
         }
 
         private async void Form1_Show(object sender, EventArgs e)
         {
-            //server.Remotes.Add("a", new Remote { DisplayName = "TEST", UserName = "test", Hostname = "PC1", Address = System.Net.IPAddress.Parse("192.168.1.1"),
-            //    Port = 42000, Status = RemoteStatus.DISCONNECTED });
+            // server.Remotes.Add("a", new Remote { DisplayName = "TEST", UserName = "test", Hostname = "PC1", Address = System.Net.IPAddress.Parse("192.168.1.1"),
+            //   Port = 42000, Status = RemoteStatus.DISCONNECTED });
+
             DoUpdateUI();
             
             if (Properties.Settings.Default.FirstRun)
@@ -53,7 +68,7 @@ namespace Warpinator
             if (Properties.Settings.Default.CheckForUpdates)
                 await CheckForUpdates();
             
-            await server.Start();
+            await server.Start(Properties.Settings.Default.getServerSettings());
         }
 
         private void OnFormClosing(object sender, FormClosingEventArgs e)
@@ -77,6 +92,10 @@ namespace Warpinator
             Close();
         }
 
+        public static void OnUiHasToBeUpdated(object s, EventArgs a)
+        {
+            UpdateUI();
+        }
         public static void UpdateUI()
         {
             if (current != null)
@@ -149,9 +168,21 @@ namespace Warpinator
 
             if (ballonClickHandler != null)
                 notifyIcon.BalloonTipClicked -= ballonClickHandler;
-            ballonClickHandler = (a, b) => server.Remotes[t.RemoteUUID].OpenWindow();
+            ballonClickHandler = (a, b) => OpenWindow(server.Remotes[t.RemoteUUID]);
             notifyIcon.BalloonTipClicked += ballonClickHandler;
             notifyIcon.ShowBalloonTip(5000);
+        }
+        public static void OpenWindow(Remote r)
+        {
+            if (!TransferFomList.ContainsKey(r))
+            {
+                TransferForm form = new TransferForm(r);
+                form.Disposed += (a, b) => form = null;
+                form.Show();
+                TransferFomList[r] = form;
+            }            
+
+            TransferFomList[r].Focus();
         }
 
         private async Task CheckForUpdates()
@@ -169,7 +200,7 @@ namespace Warpinator
                     string latest = res.Headers.Location.ToString().Split('/').Last().Substring(1);
                     latest = System.Text.RegularExpressions.Regex.Replace(latest, @"[A-Za-z]+", "");
                     var ver = new Version(latest);
-                    log.Debug("Latest version is " + ver);
+                    Console.WriteLine("Latest version is " + ver);
                     var cur = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
                     if (ver > cur)
                     {
@@ -177,12 +208,12 @@ namespace Warpinator
                         if (r == DialogResult.Yes)
                             OpenWebsite(res.Headers.Location.ToString());
                     }
-                    else log.Debug("We are up to date");
+                    else Console.WriteLine("We are up to date");
                 }
             }
-            catch (Exception ex)
+            catch (Exception )
             {
-                log.Warn("Failed to check for new version", ex);
+                Console.WriteLine("Failed to check for new version");
             }
         }
 
@@ -232,5 +263,30 @@ namespace Warpinator
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e) => this.Show();
         private void quitToolStripMenuItem1_Click(object sender, EventArgs e) => Quit();
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void lblInitializing_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void helpToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void connectionIssuesToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void menuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
+        {
+
+        }
     }
 }

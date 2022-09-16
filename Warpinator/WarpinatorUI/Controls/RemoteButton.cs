@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using iShare;
 
 namespace Warpinator.Controls
 {
@@ -46,8 +47,8 @@ namespace Warpinator.Controls
 
         private void RemoteButton_Click(object sender, EventArgs e)
         {
-            remote.ProcessSendToTransfer();
-            remote.OpenWindow();
+            remote.ProcessSendToTransfer(Program.SendPaths);
+            Form1.OpenWindow(remote);
         }
 
         private void DrawButton(object sender, PaintEventArgs e)

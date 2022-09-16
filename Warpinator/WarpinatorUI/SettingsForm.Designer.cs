@@ -59,11 +59,13 @@ namespace Warpinator
             // 
             resources.ApplyResources(this.label1, "label1");
             this.label1.Name = "label1";
+            this.label1.Click += new System.EventHandler(this.label1_Click);
             // 
             // txtRecvDir
             // 
             resources.ApplyResources(this.txtRecvDir, "txtRecvDir");
             this.txtRecvDir.Name = "txtRecvDir";
+            this.txtRecvDir.TextChanged += new System.EventHandler(this.txtRecvDir_TextChanged);
             // 
             // button1
             // 

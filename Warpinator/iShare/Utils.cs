@@ -5,15 +5,16 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 
-namespace Warpinator
+namespace iShare
 {
-    static class Utils
+    public static class Utils
     {
         public static string GetDataDir()
         {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Warpinator");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "iShare");
         }
 
         public static string GetCertDir()
@@ -60,19 +61,24 @@ namespace Warpinator
         private const string DownloadsGUID = "{374DE290-123F-4565-9164-39C4925E467B}";
         public static string GetDefaultDownloadFolder()
         {
-            int result = Shell32.SHGetKnownFolderPath(new Guid(DownloadsGUID),
-            (uint)0x00004000 /*Don't verify*/, new IntPtr(0), out IntPtr outPath);
-            if (result >= 0)
-            {
-                string path = Marshal.PtrToStringUni(outPath);
-                Marshal.FreeCoTaskMem(outPath);
-                return path;
-            }
-            else
-            {
-                throw new ExternalException("Unable to retrieve the known folder path. It may not "
-                    + "be available on this system.", result);
-            }
+
+            string path = Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.Personal));
+            //path = Path.Combine(path, "Downloads");
+            Console.WriteLine("Default Path = " + path);
+            return path;
+            //int result = Shell32.SHGetKnownFolderPath(new Guid(DownloadsGUID),
+            //(uint)0x00004000 /*Don't verify*/, new IntPtr(0), out IntPtr outPath);
+            //if (result >= 0)
+            //{
+            //    string path = Marshal.PtrToStringUni(outPath);
+            //    Marshal.FreeCoTaskMem(outPath);
+            //    return path;
+            //}
+            //else
+            //{
+            //    throw new ExternalException("Unable to retrieve the known folder path. It may not "
+            //        + "be available on this system.", result);
+            //}
         }
 
         public static Icon GetFileIcon(string name, bool largeIcon)
@@ -123,7 +129,7 @@ namespace Warpinator
             [DllImport("shell32.dll", EntryPoint = "#261", CharSet = CharSet.Unicode, PreserveSig = false)]
             public static extern void GetUserTilePath(string username, UInt32 whatever, StringBuilder picpath, int maxLength);
         }
-        internal static class User32
+        public static class User32
         {
             [DllImport("User32.dll")]
             public static extern int DestroyIcon(IntPtr hIcon);
