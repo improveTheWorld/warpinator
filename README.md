@@ -1,9 +1,9 @@
 # Warpinator as a library for multi-plateform (unofficial)
 
-This is an unofficial reimplementation of Linux Mint's file sharing tool [Warpinator](https://github.com/linuxmint/warpinator) for Windows 7-10.
+This is an unofficial reimplementation of Linux Mint's file sharing tool [Warpinator](https://github.com/linuxmint/warpinator).
 
 - The idea is to break the implementation into two layers(two projects)  : 
-  1) A library ( iShare.dll)  that can be compiled and used for diffrent plateforms,
+  1) A library ( iShare.dll)  that can be compiled and used for diffrent plateforms (windows,linux,android and iOS)
   2) and a windows graphical application  that uses this library.
 
 
