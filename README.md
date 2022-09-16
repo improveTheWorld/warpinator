@@ -1,14 +1,17 @@
-# Warpinator for Windows (unofficial)
+# Warpinator as a library for multi-plateform (unofficial)
 
 This is an unofficial reimplementation of Linux Mint's file sharing tool [Warpinator](https://github.com/linuxmint/warpinator) for Windows 7-10.
 
-Transfer files between Linux, Windows and Android devices
+- The idea is to break the implementation into two layers(two projects)  : 
+  1) A library ( iShare.dll)  that can be compiled and used for diffrent plateforms,
+  2) and a windows graphical application  that uses this library.
 
-## Download
-Now available on the [Releases](https://github.com/slowscript/warpinator-windows/releases) page
+
+## Download Releases
+not yet available 
 
 ## Building
-Requires .NET SDK 4.6.2
+Requires .NET SDK 6.0.401
 
 Build with Visual Studio
 
