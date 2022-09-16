@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WarpinatorUI", "Warpinator\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "iShare", "..\warpinator-master\Warpinator\iShare\iShare.csproj", "{C7010983-16F9-4B2F-BBE5-1A63FE8C8DAE}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WarpinatorConsolApp", "Warpinator\WarpinatorConsoleAppForLinux\WarpinatorConsolApp.csproj", "{00133DCF-D4C9-4DB4-B324-F3C77BFCAA98}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{C7010983-16F9-4B2F-BBE5-1A63FE8C8DAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C7010983-16F9-4B2F-BBE5-1A63FE8C8DAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C7010983-16F9-4B2F-BBE5-1A63FE8C8DAE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00133DCF-D4C9-4DB4-B324-F3C77BFCAA98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00133DCF-D4C9-4DB4-B324-F3C77BFCAA98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00133DCF-D4C9-4DB4-B324-F3C77BFCAA98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00133DCF-D4C9-4DB4-B324-F3C77BFCAA98}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
