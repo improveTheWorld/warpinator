@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace WarpinatorUI.Resources {
+namespace Warpinator.Resources {
     using System;
     
     

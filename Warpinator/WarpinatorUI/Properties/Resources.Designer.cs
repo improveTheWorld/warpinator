@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace WarpinatorUI.Properties {
+namespace Warpinator.Properties {
     using System;
     
     
